@@ -17,22 +17,20 @@ getWantedBarrelPos = (barrelPos, wantedY)->
     y: if barrelPos.y > wantedY then barrelPos.y+1 else barrelPos.y-1
     
 manhattanDistanceOne = (pos1, pos2) ->
-    distanceX = (pos1.x - pos2.x)
-    console.log pos1.x
-    console.log pos1.y
-    distanceY = (pos1.y - pos2.y)
-    distanceX = if (distanceX >= 0)? then distanceX else (0-distanceX)
-    distanceY = if (distanceY >= 0)? then distanceY else (0-distanceY)
-    return distanceX+distanceY == 1
+    distanceX = Math.abs(pos1.x - pos2.x)
+    distanceY = Math.abs(pos1.y - pos2.y)
+    return (distanceX+distanceY == 1)
     
 isEqualPos = (pos1, pos2) ->
-    pos1.x == pos2.x && pos1.y == pos2.y
+    if pos1 and pos2
+        return pos1.x == pos2.x && pos1.y == pos2.y
+    return false
     
 createActionMoveTo = (bot, toPosition, toEvit) ->
-    direction = "SOUTH" if bot.coords.y < toPosition.y and !isEqualPos(toEvit, x: bot.coords.x, y: bot.coords.y+1)
-    direction = "NORTH" if bot.coords.y > toPosition.y and !isEqualPos(toEvit, x: bot.coords.x, y: bot.coords.y-1) 
     direction = "EAST"  if bot.coords.x < toPosition.x and !isEqualPos(toEvit, x: bot.coords.x+1, y: bot.coords.y)
     direction = "WEST"  if bot.coords.x > toPosition.x and !isEqualPos(toEvit, x: bot.coords.x-1, y: bot.coords.y)
+    direction = "SOUTH" if bot.coords.y < toPosition.y and !isEqualPos(toEvit, x: bot.coords.x, y: bot.coords.y+1)
+    direction = "NORTH" if bot.coords.y > toPosition.y and !isEqualPos(toEvit, x: bot.coords.x, y: bot.coords.y-1) 
 
     if direction?
         botId: bot.id, type: "MOVE", direction: direction
@@ -53,41 +51,56 @@ runTurn = (state) ->
     # Array of actions to send to the server
     actions = []
 
-    # Can I protect my barrel?
-    protectBarrelLogic = (bot, barrel, opponents) ->
-        # Check if at the same row as barrel
-#        if barrel.y == bot.y && \
-#             (((barrel.x + 1) == bot.x) # Check if next to the barrel
-#            or ((barrel.x - 1) == bot.x))
-        if manhattanDistanceOne bot, barrel
-            push = False
+    # Can I push an opponent?
+    pushOpponentsLogic = (bot, opponents) ->
+        push = false
+        if opponents
             for opponent in opponents
-                push = push or manhattanDistanceOne opponent.coords, barrel
-            return push
+                push = push or manhattanDistanceOne bot.coords, opponent.coords
+         return push
+
+
+    # Can I protect the barrel?
+    canProtectBarrelLogic = (bot, barrel, opponents) ->
+        push = false
+        if (manhattanDistanceOne bot.coords, barrel) and opponents
+            for opponent in opponents
+                console.log "opponent.coords.x: "+opponent.coords.x
+                console.log "opponent.coords.y: "+opponent.coords.y
+                push = push or (manhattanDistanceOne opponent.coords, barrel)
+        if push
+            console.log "bot.coords.x: "+bot.coords.x
+            console.log "bot.coords.y: "+bot.coords.y
+            console.log "barrel.x: "+barrel.x
+            console.log "barrel.y: "+barrel.y
+        return push
+
+    protectBarrelLogic = (bot, opponents) ->
+        if canProtectBarrelLogic bot, myTeamBarrel, opponents
+           actions.push createActionMoveTo(bot, myTeamBarrel)
+           return true
+        else if canProtectBarrelLogic bot, opponentBarrel, opponents
+           actions.push createActionMoveTo(bot, opponentBarrel)
+           return true
+        return false
 
     # Attacker Logic
     attackerBotLogic = (bot) ->
         wantedPos = getWantedBarrelPos opponentBarrel, targetY
-        if protectBarrelLogic bot, myTeamBarrel
-           actions.push createActionMoveTo(bot, myTeamBarrel)
-        else if protectBarrelLogic bot, opponentBarrel
-           actions.push createActionMoveTo(bot, opponentBarrel)
-        else if isEqualPos bot.coords, wantedPos
-            actions.push createActionMoveTo(bot, { x: bot.coords.x, y: targetY }, { x: -1, y: -1 })
-        else
-            actions.push createActionMoveTo(bot, wantedPos, opponentBarrel)
+        if not protectBarrelLogic bot, opponents
+            if isEqualPos bot.coords, wantedPos
+                actions.push createActionMoveTo(bot, { x: bot.coords.x, y: targetY }, { x: -1, y: -1 })
+            else
+                actions.push createActionMoveTo(bot, wantedPos, opponentBarrel)
     
     # Defender Logic
     defenderBotLogic = (bot) ->
         wantedPos = getWantedBarrelPos myTeamBarrel, deffendingY
-        if protectBarrelLogic bot, myTeamBarrel, opponents
-           actions.push createActionMoveTo(bot, myTeamBarrel)
-        else if protectBarrelLogic bot, opponentBarrel, opponents
-           actions.push createActionMoveTo(bot, opponentBarrel)
-        else if isEqualPos bot.coords, wantedPos
-            actions.push createActionMoveTo(bot, {x: bot.coords.x, y: deffendingY}, {x:-1,y:-1})
-        else
-            actions.push createActionMoveTo(bot, wantedPos,myTeamBarrel)
+        if not protectBarrelLogic bot, opponents
+            if isEqualPos bot.coords, wantedPos
+                actions.push createActionMoveTo(bot, {x: bot.coords.x, y: deffendingY}, {x:-1,y:-1})
+            else
+                actions.push createActionMoveTo(bot, wantedPos,myTeamBarrel)
         
     # We define 3 bots to "attack"..
     attackers = [ state[myTeam][0], state[myTeam][2], state[myTeam][4]]
@@ -110,13 +123,13 @@ joinSimulation = ->
     server.write JSON.stringify(
         simulationId : simulationId,
         type : "join-simulation",
-        nick : "Dummy",
+        nick : "Drunk",
         names : [
-            "Carawebo",
-            "Pantuflo",
-            "Chistaburras",
-            "Pontato",
-            "Jhonny Tablas"
+            "Johnny Walker",
+            "Toalabarra",
+            "JägerMëister",
+            "Delirium Tremens",
+            "Pawël Kwak"
         ])
         
 server = net.connect port: 9000, joinSimulation

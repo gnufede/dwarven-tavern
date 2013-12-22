@@ -27,33 +27,20 @@
 
   manhattanDistanceOne = function(pos1, pos2) {
     var distanceX, distanceY;
-    distanceX = pos1.x - pos2.x;
-    console.log(pos1.x);
-    console.log(pos1.y);
-    distanceY = pos1.y - pos2.y;
-    distanceX = (distanceX >= 0) != null ? distanceX : 0 - distanceX;
-    distanceY = (distanceY >= 0) != null ? distanceY : 0 - distanceY;
+    distanceX = Math.abs(pos1.x - pos2.x);
+    distanceY = Math.abs(pos1.y - pos2.y);
     return distanceX + distanceY === 1;
   };
 
   isEqualPos = function(pos1, pos2) {
-    return pos1.x === pos2.x && pos1.y === pos2.y;
+    if (pos1 && pos2) {
+      return pos1.x === pos2.x && pos1.y === pos2.y;
+    }
+    return false;
   };
 
   createActionMoveTo = function(bot, toPosition, toEvit) {
     var direction;
-    if (bot.coords.y < toPosition.y && !isEqualPos(toEvit, {
-      x: bot.coords.x,
-      y: bot.coords.y + 1
-    })) {
-      direction = "SOUTH";
-    }
-    if (bot.coords.y > toPosition.y && !isEqualPos(toEvit, {
-      x: bot.coords.x,
-      y: bot.coords.y - 1
-    })) {
-      direction = "NORTH";
-    }
     if (bot.coords.x < toPosition.x && !isEqualPos(toEvit, {
       x: bot.coords.x + 1,
       y: bot.coords.y
@@ -65,6 +52,18 @@
       y: bot.coords.y
     })) {
       direction = "WEST";
+    }
+    if (bot.coords.y < toPosition.y && !isEqualPos(toEvit, {
+      x: bot.coords.x,
+      y: bot.coords.y + 1
+    })) {
+      direction = "SOUTH";
+    }
+    if (bot.coords.y > toPosition.y && !isEqualPos(toEvit, {
+      x: bot.coords.x,
+      y: bot.coords.y - 1
+    })) {
+      direction = "NORTH";
     }
     if (direction != null) {
       return {
@@ -81,60 +80,78 @@
   };
 
   runTurn = function(state) {
-    var actions, attackerBotLogic, attackers, bot, defenderBotLogic, defenders, myTeamBarrel, opponentBarrel, opponents, protectBarrelLogic, turnMessage, _i, _j, _len, _len1;
+    var actions, attackerBotLogic, attackers, bot, canProtectBarrelLogic, defenderBotLogic, defenders, myTeamBarrel, opponentBarrel, opponents, protectBarrelLogic, pushOpponentsLogic, turnMessage, _i, _j, _len, _len1;
     myTeamBarrel = state["barrels"][myTeam]["coords"];
     opponentBarrel = state["barrels"][opponentTeam]["coords"];
     opponents = state[opponentTeam];
     attackers = [];
     defenders = [];
     actions = [];
-    protectBarrelLogic = function(bot, barrel, opponents) {
+    pushOpponentsLogic = function(bot, opponents) {
       var opponent, push, _i, _len;
-      if (manhattanDistanceOne(bot, barrel)) {
-        push = False;
+      push = false;
+      if (opponents) {
         for (_i = 0, _len = opponents.length; _i < _len; _i++) {
           opponent = opponents[_i];
-          push = push || manhattanDistanceOne(opponent.coords, barrel);
+          push = push || manhattanDistanceOne(bot.coords, opponent.coords);
         }
-        return push;
       }
+      return push;
+    };
+    canProtectBarrelLogic = function(bot, barrel, opponents) {
+      var opponent, push, _i, _len;
+      push = false;
+      if ((manhattanDistanceOne(bot.coords, barrel)) && opponents) {
+        for (_i = 0, _len = opponents.length; _i < _len; _i++) {
+          opponent = opponents[_i];
+          console.log("opponent.coords.x: " + opponent.coords.x);
+          console.log("opponent.coords.y: " + opponent.coords.y);
+          push = push || (manhattanDistanceOne(opponent.coords, barrel));
+        }
+      }
+      if (push) {
+        console.log("bot.coords.x: " + bot.coords.x);
+        console.log("bot.coords.y: " + bot.coords.y);
+        console.log("barrel.x: " + barrel.x);
+        console.log("barrel.y: " + barrel.y);
+      }
+      return push;
+    };
+    protectBarrelLogic = function(bot, opponents) {
+      return false;
     };
     attackerBotLogic = function(bot) {
       var wantedPos;
       wantedPos = getWantedBarrelPos(opponentBarrel, targetY);
-      if (protectBarrelLogic(bot, myTeamBarrel)) {
-        return actions.push(createActionMoveTo(bot, myTeamBarrel));
-      } else if (protectBarrelLogic(bot, opponentBarrel)) {
-        return actions.push(createActionMoveTo(bot, opponentBarrel));
-      } else if (isEqualPos(bot.coords, wantedPos)) {
-        return actions.push(createActionMoveTo(bot, {
-          x: bot.coords.x,
-          y: targetY
-        }, {
-          x: -1,
-          y: -1
-        }));
-      } else {
-        return actions.push(createActionMoveTo(bot, wantedPos, opponentBarrel));
+      if (!protectBarrelLogic(bot, opponents)) {
+        if (isEqualPos(bot.coords, wantedPos)) {
+          return actions.push(createActionMoveTo(bot, {
+            x: bot.coords.x,
+            y: targetY
+          }, {
+            x: -1,
+            y: -1
+          }));
+        } else {
+          return actions.push(createActionMoveTo(bot, wantedPos, opponentBarrel));
+        }
       }
     };
     defenderBotLogic = function(bot) {
       var wantedPos;
       wantedPos = getWantedBarrelPos(myTeamBarrel, deffendingY);
-      if (protectBarrelLogic(bot, myTeamBarrel, opponents)) {
-        return actions.push(createActionMoveTo(bot, myTeamBarrel));
-      } else if (protectBarrelLogic(bot, opponentBarrel, opponents)) {
-        return actions.push(createActionMoveTo(bot, opponentBarrel));
-      } else if (isEqualPos(bot.coords, wantedPos)) {
-        return actions.push(createActionMoveTo(bot, {
-          x: bot.coords.x,
-          y: deffendingY
-        }, {
-          x: -1,
-          y: -1
-        }));
-      } else {
-        return actions.push(createActionMoveTo(bot, wantedPos, myTeamBarrel));
+      if (!protectBarrelLogic(bot, opponents)) {
+        if (isEqualPos(bot.coords, wantedPos)) {
+          return actions.push(createActionMoveTo(bot, {
+            x: bot.coords.x,
+            y: deffendingY
+          }, {
+            x: -1,
+            y: -1
+          }));
+        } else {
+          return actions.push(createActionMoveTo(bot, wantedPos, myTeamBarrel));
+        }
       }
     };
     attackers = [state[myTeam][0], state[myTeam][2], state[myTeam][4]];
@@ -160,8 +177,8 @@
     return server.write(JSON.stringify({
       simulationId: simulationId,
       type: "join-simulation",
-      nick: "Dummy",
-      names: ["Carawebo", "Pantuflo", "Chistaburras", "Pontato", "Jhonny Tablas"]
+      nick: "Drunk",
+      names: ["Johnny Walker", "Toalabarra", "JägerMëister", "Delirium Tremens", "Pawël Kwak"]
     }));
   };
 
