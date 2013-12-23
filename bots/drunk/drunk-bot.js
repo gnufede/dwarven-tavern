@@ -93,7 +93,12 @@
       if (opponents) {
         for (_i = 0, _len = opponents.length; _i < _len; _i++) {
           opponent = opponents[_i];
-          push = push || manhattanDistanceOne(bot.coords, opponent.coords);
+          if (!push) {
+            push = push || manhattanDistanceOne(bot.coords, opponent.coords);
+            if (push) {
+              actions.push(createActionMoveTo(bot, opponent.coords));
+            }
+          }
         }
       }
       return push;
@@ -104,36 +109,37 @@
       if ((manhattanDistanceOne(bot.coords, barrel)) && opponents) {
         for (_i = 0, _len = opponents.length; _i < _len; _i++) {
           opponent = opponents[_i];
-          console.log("opponent.coords.x: " + opponent.coords.x);
-          console.log("opponent.coords.y: " + opponent.coords.y);
           push = push || (manhattanDistanceOne(opponent.coords, barrel));
         }
-      }
-      if (push) {
-        console.log("bot.coords.x: " + bot.coords.x);
-        console.log("bot.coords.y: " + bot.coords.y);
-        console.log("barrel.x: " + barrel.x);
-        console.log("barrel.y: " + barrel.y);
       }
       return push;
     };
     protectBarrelLogic = function(bot, opponents) {
+      if (canProtectBarrelLogic(bot, myTeamBarrel, opponents)) {
+        actions.push(createActionMoveTo(bot, myTeamBarrel));
+        return true;
+      } else if (canProtectBarrelLogic(bot, opponentBarrel, opponents)) {
+        actions.push(createActionMoveTo(bot, opponentBarrel));
+        return true;
+      }
       return false;
     };
     attackerBotLogic = function(bot) {
       var wantedPos;
       wantedPos = getWantedBarrelPos(opponentBarrel, targetY);
       if (!protectBarrelLogic(bot, opponents)) {
-        if (isEqualPos(bot.coords, wantedPos)) {
-          return actions.push(createActionMoveTo(bot, {
-            x: bot.coords.x,
-            y: targetY
-          }, {
-            x: -1,
-            y: -1
-          }));
-        } else {
-          return actions.push(createActionMoveTo(bot, wantedPos, opponentBarrel));
+        if (!pushOpponentsLogic(bot, opponents)) {
+          if (isEqualPos(bot.coords, wantedPos)) {
+            return actions.push(createActionMoveTo(bot, {
+              x: bot.coords.x,
+              y: targetY
+            }, {
+              x: -1,
+              y: -1
+            }));
+          } else {
+            return actions.push(createActionMoveTo(bot, wantedPos, opponentBarrel));
+          }
         }
       }
     };
@@ -141,16 +147,18 @@
       var wantedPos;
       wantedPos = getWantedBarrelPos(myTeamBarrel, deffendingY);
       if (!protectBarrelLogic(bot, opponents)) {
-        if (isEqualPos(bot.coords, wantedPos)) {
-          return actions.push(createActionMoveTo(bot, {
-            x: bot.coords.x,
-            y: deffendingY
-          }, {
-            x: -1,
-            y: -1
-          }));
-        } else {
-          return actions.push(createActionMoveTo(bot, wantedPos, myTeamBarrel));
+        if (!pushOpponentsLogic(bot, opponents)) {
+          if (isEqualPos(bot.coords, wantedPos)) {
+            return actions.push(createActionMoveTo(bot, {
+              x: bot.coords.x,
+              y: deffendingY
+            }, {
+              x: -1,
+              y: -1
+            }));
+          } else {
+            return actions.push(createActionMoveTo(bot, wantedPos, myTeamBarrel));
+          }
         }
       }
     };

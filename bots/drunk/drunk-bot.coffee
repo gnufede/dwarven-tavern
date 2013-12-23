@@ -56,7 +56,10 @@ runTurn = (state) ->
         push = false
         if opponents
             for opponent in opponents
-                push = push or manhattanDistanceOne bot.coords, opponent.coords
+                if not push
+                    push = push or manhattanDistanceOne bot.coords, opponent.coords
+                    if push
+                        actions.push createActionMoveTo(bot, opponent.coords)
          return push
 
 
@@ -65,14 +68,7 @@ runTurn = (state) ->
         push = false
         if (manhattanDistanceOne bot.coords, barrel) and opponents
             for opponent in opponents
-                console.log "opponent.coords.x: "+opponent.coords.x
-                console.log "opponent.coords.y: "+opponent.coords.y
                 push = push or (manhattanDistanceOne opponent.coords, barrel)
-        if push
-            console.log "bot.coords.x: "+bot.coords.x
-            console.log "bot.coords.y: "+bot.coords.y
-            console.log "barrel.x: "+barrel.x
-            console.log "barrel.y: "+barrel.y
         return push
 
     protectBarrelLogic = (bot, opponents) ->
@@ -87,20 +83,20 @@ runTurn = (state) ->
     # Attacker Logic
     attackerBotLogic = (bot) ->
         wantedPos = getWantedBarrelPos opponentBarrel, targetY
-        if not protectBarrelLogic bot, opponents
-            if isEqualPos bot.coords, wantedPos
-                actions.push createActionMoveTo(bot, { x: bot.coords.x, y: targetY }, { x: -1, y: -1 })
-            else
-                actions.push createActionMoveTo(bot, wantedPos, opponentBarrel)
+        if isEqualPos bot.coords, wantedPos
+            actions.push createActionMoveTo(bot, { x: bot.coords.x, y: targetY }, { x: -1, y: -1 })
+        else
+            actions.push createActionMoveTo(bot, wantedPos, opponentBarrel)
     
     # Defender Logic
     defenderBotLogic = (bot) ->
         wantedPos = getWantedBarrelPos myTeamBarrel, deffendingY
         if not protectBarrelLogic bot, opponents
-            if isEqualPos bot.coords, wantedPos
-                actions.push createActionMoveTo(bot, {x: bot.coords.x, y: deffendingY}, {x:-1,y:-1})
-            else
-                actions.push createActionMoveTo(bot, wantedPos,myTeamBarrel)
+            if not pushOpponentsLogic bot, opponents
+                if isEqualPos bot.coords, wantedPos
+                    actions.push createActionMoveTo(bot, {x: bot.coords.x, y: deffendingY}, {x:-1,y:-1})
+                else
+                    actions.push createActionMoveTo(bot, wantedPos,myTeamBarrel)
         
     # We define 3 bots to "attack"..
     attackers = [ state[myTeam][0], state[myTeam][2], state[myTeam][4]]
@@ -116,6 +112,8 @@ runTurn = (state) ->
         type :   "player-turn",
         actions: actions
 
+    #for action in actions
+        #console.log("actions: "+action)
     server.write JSON.stringify(turnMessage) unless disconnected
 
     
